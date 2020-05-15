@@ -6,12 +6,13 @@ from torch.utils.data import Dataset
 
 
 class MaskDataset(Dataset):
-    def __init__(self, data_dir, img_transform, msk_transform):
+    def __init__(self, data_dir, img_transform, msk_transform, img_resize=(256, 256), msk_resize=(32, 32)):
         self.image_paths = []
         self.masks_paths = []
         self.img_transform = img_transform
         self.msk_transform = msk_transform
-
+        self.img_resize = img_resize
+        self.msk_resize = msk_resize
         data_list = os.listdir(data_dir)
 
         for name in data_list:
@@ -28,16 +29,16 @@ class MaskDataset(Dataset):
         msk_path = self.masks_paths[i]
 
         img = cv2.imread(img_path, 0)
-        img = cv2.resize(img, (64 * 4, 64 * 4))
+        img = cv2.resize(img, self.img_resize)
 
         msk = cv2.imread(msk_path, 0)
-        msk = cv2.resize(msk, (32, 32))
+        msk = cv2.resize(msk, self.msk_resize)
         msk = np.where(msk > 1, 1, 0)
 
         label = np.sum(msk) == 0
 
-        return self.img_transform(img).double(), \
-               self.msk_transform(msk).double(), \
+        return self.img_transform(img).float(), \
+               self.msk_transform(msk).float(), \
                torch.tensor(label).long()
 
     def __len__(self):

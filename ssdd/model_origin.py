@@ -14,15 +14,9 @@ class SegmentationNet(nn.Module):
             nn.Conv2d(32, 32, 5, padding=2, bias=False),
             nn.BatchNorm2d(32, affine=True),
             nn.ReLU(),
-            nn.Conv2d(32, 32, 5, padding=2, bias=False),
-            nn.BatchNorm2d(32, affine=True),
-            nn.ReLU(),
             nn.MaxPool2d(2))
         self.layer2 = nn.Sequential(
             nn.Conv2d(32, 64, 5, padding=2, bias=False),
-            nn.BatchNorm2d(64, affine=True),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 5, padding=2, bias=False),
             nn.BatchNorm2d(64, affine=True),
             nn.ReLU(),
             nn.Conv2d(64, 64, 5, padding=2, bias=False),
@@ -45,23 +39,14 @@ class SegmentationNet(nn.Module):
             nn.Conv2d(64, 64, 5, padding=2, bias=False),
             nn.BatchNorm2d(64, affine=True),
             nn.ReLU(),
-            nn.Conv2d(64, 64, 5, padding=2, bias=False),
-            nn.BatchNorm2d(64, affine=True),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 5, padding=2, bias=False),
-            nn.BatchNorm2d(64, affine=True),
-            nn.ReLU(),
             nn.MaxPool2d(2))
         self.conv15x15 = nn.Sequential(
-            nn.Conv2d(64, 128, 15, padding=7, bias=False),
-            nn.BatchNorm2d(128, affine=True),
+            nn.Conv2d(64, 1024, 15, padding=7, bias=False),
+            nn.BatchNorm2d(1024, affine=True),
             nn.ReLU())
         self.conv1x1 = nn.Sequential(
-            nn.Conv2d(128, 1, 1, bias=False),
+            nn.Conv2d(1024, 1, 1, bias=False),
             nn.BatchNorm2d(1, affine=True))
-        self.recon_layer = nn.Sequential(
-            nn.ConvTranspose2d(128, 1, 16, stride=4, padding=6, bias=False)
-        )
         for param in self.parameters():
             if param.ndim == 4:
                 torch.nn.init.xavier_uniform_(param)
@@ -79,8 +64,7 @@ class SegmentationNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         feat = self.conv15x15(x)
-        # mask = self.conv1x1(feat)
-        mask = self.recon_layer(feat)
+        mask = self.conv1x1(feat)
         mask = torch.sigmoid(mask)
         return feat, mask
 
@@ -90,7 +74,7 @@ class DecisionNet(nn.Module):
         nn.Module.__init__(self)
         self.pre_pool = nn.MaxPool2d(2)
         self.layer1 = nn.Sequential(
-            nn.Conv2d(129, 8, 5, padding=2, bias=False),
+            nn.Conv2d(1025, 8, 5, padding=2, bias=False),
             nn.BatchNorm2d(8, affine=True),
             nn.ReLU(),
             nn.MaxPool2d(2))
@@ -121,8 +105,6 @@ class DecisionNet(nn.Module):
         return x.reshape(n, c)
 
     def forward(self, feat, mask):
-        mask = F.max_pool2d(mask, (4, 4))
-
         x = torch.cat([feat, mask], dim=1)
         x = self.pre_pool(x)
         x = self.layer1(x)
